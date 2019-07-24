@@ -1,0 +1,53 @@
+version: 0.2 
+
+phases: 
+  install: 
+    commands: 
+      - printenv 
+      - echo Entered the install phase 
+      - apt-get update -y 
+      - apt-get -y install zip unzip awscli git tree
+      - cd /opt/ 
+      - wget http://www-eu.apache.org/dist/maven/maven-3/3.3.9/binaries/apache-maven-3.3.9-bin.tar.gz 
+      - tar -xvzf apache-maven-3.3.9-bin.tar.gz 
+      - mv apache-maven-3.3.9 maven 
+      - echo export JAVA_HOME=/usr/lib/jvm/java-8-oracle > /opt/buildenv.sh 
+      - echo export M2_HOME=/opt/maven >> /opt/buildenv.sh 
+      - echo export MAVEN_HOME=/opt/maven >> /opt/buildenv.sh 
+      - echo export PATH=$M2_HOME/bin:$JAVA_HOME/bin:$PATH >> /opt/buildenv.sh 
+      - chmod +x /opt/buildenv.sh 
+      - sh /opt/buildenv.sh 
+      - echo `mvn --version` 
+      - echo $CODEBUILD_SRC_DIR 
+      - git config --global user.name "cc-kk" 
+      - echo `git config --global user.name` 
+      - git config --global user.email "kranthik851@gmail.com" 
+      - echo `git config --global user.email` 
+      - git config --global credential.helper '!aws codecommit credential-helper $@' 
+      - git config --global credential.UseHttpPath true 
+  
+  build: 
+    commands: 
+      - echo Entered the build phases 
+      - echo Build started on `date`, `pwd`, `echo $PATH`, `ls /opt` 
+      - cd $CODEBUILD_SRC_DIR/crudrestapiexample 
+      - echo "Remove the snapshot from version tag to prepare for release" 
+      - mvn clean install -Dmaven.test.skip=true
+      - cd $CODEBUILD_SRC_DIR;pwd;tree
+  post_build: 
+    commands: 
+      - echo Entered the post build phase 
+      - echo Build completed on `date` 
+      - pwd; ls -la; tree
+      - mkdir -p /opt/build/springboot/ 
+      - cp $CODEBUILD_SRC_DIR/crudrestapiexample/target/crudrestapiexample-0.0.1-SNAPSHOT.jar /opt/build/springboot/
+      - cd /opt/build 
+      - tar -zcvhf spring_boot.tar.gz springboot 
+      - cp $CODEBUILD_SRC_DIR/appspec.yml /opt/build/ 
+      - cp -R $CODEBUILD_SRC_DIR/scripts /opt/build/ 
+      - cd /opt/build/
+      - zip -9 -r spring-boot.zip spring_boot.tar.gz appspec.yml scripts/
+artifacts: 
+    files: 
+      - /opt/build/spring-boot.zip 
+    discard-paths: yes 
